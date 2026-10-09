@@ -1,0 +1,4 @@
+# Shell scripts must keep LF: a CRLF `set -o pipefail` line dies on the first
+# effective line inside Linux containers (2026-10-01, image 1.4 incident —
+# PrivaGlot-dist checkout on a Windows filesystem turned LF into CRLF).
+*.sh text eol=lf
