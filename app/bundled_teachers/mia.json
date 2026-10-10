@@ -1,0 +1,9 @@
+{
+  "teacher_profile": {
+    "display_name": "Mia"
+  },
+  "tts_config": {
+    "voice": "Mia",
+    "style": "calm"
+  }
+}
