@@ -1,0 +1,25 @@
+{
+  "format": "privaglot-textbook/1",
+  "id": "my-first-book",
+  "title": "我自己的教材",
+  "stage": "小学",
+  "publisher": "",
+  "grade": 4,
+  "term": "上册",
+  "units": [
+    {
+      "unit_id": "unit_1",
+      "title": "Unit 1",
+      "vocabulary": [
+        "example word",
+        "another word"
+      ],
+      "patterns": [
+        "What is this? - It is a book."
+      ],
+      "grammar": [
+        "Demonstratives (this/that; e.g., 'This is a pen.')"
+      ]
+    }
+  ]
+}
