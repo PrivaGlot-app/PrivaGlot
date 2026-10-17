@@ -1,0 +1,1931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrivaGlot</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e; color: #eee; min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 20px;
+        }
+        .container { max-width: 600px; width: 100%; }
+        .brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; }
+        .brand h1 { margin-bottom: 0; }
+        .brand-logo { width: 56px; height: 56px; border-radius: 50%; flex: none; }
+        h1 { text-align: center; color: #4ade80; font-size: 28px; }
+        .status { text-align: center; margin-bottom: 15px; padding: 10px; background: #16213e; border-radius: 8px; font-size: 14px; }
+        .status.connected { border: 1px solid #4ade80; }
+        .status.disconnected { border: 1px solid #ef4444; }
+        .chat-area { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 15px; min-height: 250px; max-height: 350px; overflow-y: auto; }
+        .message { margin-bottom: 12px; padding: 10px 15px; border-radius: 8px; max-width: 80%; }
+        .message.user { background: #0f3460; margin-left: auto; border-bottom-right-radius: 0; }
+        .message.assistant { background: #1a472a; margin-right: auto; border-bottom-left-radius: 0; }
+        .message.error { background: #7f1d1d; margin: 10px auto; text-align: center; max-width: 100%; }
+        .chat-separator { text-align: center; margin: 16px 0; padding: 8px 0; position: relative; }
+        .chat-separator::before, .chat-separator::after { content: ''; position: absolute; top: 50%; width: calc(50% - 60px); height: 1px; background: linear-gradient(to right, transparent, #4ade80, transparent); }
+        .chat-separator::before { left: 0; }
+        .chat-separator::after { right: 0; }
+        .chat-separator span { color: #4ade80; font-size: 13px; font-weight: 500; letter-spacing: 1px; background: #16213e; padding: 0 12px; position: relative; z-index: 1; }
+        .message-label { font-size: 12px; color: #888; margin-bottom: 5px; }
+        .message-text { line-height: 1.5; }
+        .controls { display: flex; justify-content: center; gap: 20px; align-items: center; }
+        .btn { width: 80px; height: 80px; border-radius: 50%; border: none; cursor: pointer; font-size: 24px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .btn-record { background: #ef4444; color: white; }
+        .btn-record:hover { background: #dc2626; transform: scale(1.05); }
+        .btn-record:active, .btn-record.recording { background: #b91c1c; transform: scale(0.95); animation: pulse 1s infinite; }
+        .btn:disabled { background: #374151; cursor: not-allowed; transform: none; animation: none; }
+        .btn-end { width: auto; height: auto; border-radius: 20px; padding: 10px 18px; font-size: 14px; background: #0f3460; color: #4ade80; }
+        .btn-end:hover:not(:disabled) { background: #16213e; }
+        .btn-begin-lesson {
+            width: auto; height: auto; border-radius: 20px; padding: 10px 18px;
+            font-size: 14px; background: #4ade80; color: #1a1a2e; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-begin-lesson:hover { background: #22c55e; transform: scale(1.03); }
+        .btn-begin-lesson:active { transform: scale(0.97); }
+        .session-actions { display: none; } justify-content: center; gap: 12px; margin: 10px 0; flex-wrap: wrap; }
+        @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 50% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } }
+        .indicator { display: none; text-align: center; margin-bottom: 10px; font-size: 14px; padding: 8px; border-radius: 6px; }
+        .indicator.active { display: block; }
+        .indicator.recording { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .indicator.processing { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+        .mode-info { text-align: center; margin-top: 15px; font-size: 12px; color: #666; padding: 10px; background: #16213e; border-radius: 6px; }
+        .mode-info strong { color: #4ade80; }
+        .speaking { animation: speaking-pulse 0.5s infinite; }
+        @keyframes speaking-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+                        .session-summary {
+            display: none; background: #0f3460; border: 1px solid #4ade80;
+            border-radius: 10px; padding: 15px; margin: 10px 0;
+        }
+        .session-summary h3 { color: #4ade80; margin-bottom: 8px; font-size: 14px; }
+        .session-summary .stat { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
+        .session-summary .stat-label { color: #888; }
+        .session-summary .stat-value { color: #eee; }
+        .session-summary .tag { display: inline-block; background: #16213e; color: #4ade80; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin: 2px; }
+        .progress-panel {
+            background: #16213e; border-radius: 8px; padding: 12px; margin-bottom: 10px;
+            font-size: 12px; color: #ccc; cursor: pointer;
+        }
+        .progress-panel:hover { background: #1a2744; }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; }
+        .progress-header span { color: #4ade80; font-weight: 600; }
+        .progress-body { display: none; margin-top: 10px; }
+        .progress-panel.open .progress-body { display: block; }
+        .progress-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .progress-label { color: #888; }
+        .progress-value { color: #eee; }
+        .vocab-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .vocab-tag { background: #0f3460; color: #4ade80; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .progress-bar { width: 100%; height: 4px; background: #1a1a2e; border-radius: 2px; margin-top: 4px; }
+        .progress-fill { height: 100%; background: #4ade80; border-radius: 2px; transition: width 0.3s; }
+        .progress-path-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #bbb; padding: 3px 6px; border-radius: 4px; }
+        .picker-overlay { position: fixed; inset: 0; background: rgba(10, 10, 25, 0.88); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .picker-overlay.hidden { display: none; }
+        .picker-card { background: #16213e; border-radius: 12px; padding: 24px; width: min(440px, 92vw); max-height: 80vh; overflow-y: auto; }
+        .picker-card h2 { color: #4ade80; margin-bottom: 14px; font-size: 18px; }
+        /* 首次使用的 API Key 引导：盖在最上面，包括学生选择层之上 */
+        .setup-overlay { z-index: 200; }
+        .setup-card { width: min(540px, 94vw); }
+        .setup-steps { font-size: 13px; color: #bbb; line-height: 1.8; margin-bottom: 14px; }
+        .setup-steps b { color: #4ade80; }
+        .setup-steps ol { margin: 6px 0 0; padding-left: 1.5em; }
+        .setup-steps > div { margin-bottom: 4px; }
+        .setup-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+        .setup-input { flex: 1 1 260px; padding: 11px; border-radius: 8px; border: 1px solid #1a2744; background: #0f3460; color: #eee; font-size: 14px; font-family: inherit; }
+        .setup-btn { padding: 11px 16px; border: none; border-radius: 8px; background: #4ade80; color: #1a1a2e; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .setup-btn:hover:not(:disabled) { background: #22c55e; }
+        .setup-btn.ghost { background: transparent; border: 1px solid #4ade80; color: #4ade80; font-weight: 500; }
+        .setup-btn:disabled { opacity: .55; cursor: not-allowed; }
+        .setup-result { font-size: 13px; line-height: 1.7; margin-top: 8px; white-space: pre-wrap; }
+        .setup-result.ok { color: #4ade80; }
+        .setup-result.err { color: #f87171; }
+        .setup-result.busy { color: #f59e0b; }
+        .setup-note { font-size: 12px; color: #666; margin-top: 12px; line-height: 1.7; }
+        .student-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; margin-bottom: 8px; background: #0f3460; border-radius: 8px; cursor: pointer; }
+        .student-item:hover { background: #1a2744; }
+        .student-item .name { font-weight: 600; color: #eee; font-size: 15px; }
+        .student-item .meta { font-size: 12px; color: #888; margin-top: 3px; }
+        .student-new { margin-top: 16px; padding-top: 14px; border-top: 1px solid #1a2744; display: flex; flex-direction: column; gap: 8px; }
+        .student-new input, .student-new select { padding: 9px 10px; border-radius: 6px; border: 1px solid #1a2744; background: #1a1a2e; color: #eee; font-size: 13px; }
+        .student-new button { padding: 10px; border: none; border-radius: 6px; background: #0f3460; color: #4ade80; cursor: pointer; font-size: 14px; }
+        .student-new button:hover { background: #1a2744; }
+        /* Advanced settings: teacher + delivery style (collapsed by default) */
+        .advanced-settings { margin-top: 14px; padding-top: 12px; border-top: 1px solid #1a2744; }
+        .advanced-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: pointer; user-select: none; font-size: 13px; color: #4ade80; font-weight: 600; }
+        .advanced-header .advanced-summary { color: #888; font-weight: 400; font-size: 11px; margin-left: auto; }
+        .advanced-body { display: none; flex-direction: column; gap: 8px; margin-top: 10px; }
+        .advanced-settings.open .advanced-body { display: flex; }
+        .advanced-label { font-size: 11px; color: #888; }
+        .advanced-body select { padding: 9px 10px; border-radius: 6px; border: 1px solid #1a2744; background: #1a1a2e; color: #eee; font-size: 13px; }
+        .advanced-hint { font-size: 11px; color: #666; line-height: 1.5; }
+        /* Course picker */
+        .textbook-group { margin-bottom: 16px; }
+        .textbook-header { font-size: 14px; font-weight: 600; color: #4ade80; padding: 8px 0; border-bottom: 1px solid #1a2744; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .textbook-header .textbook-count { font-size: 11px; color: #888; font-weight: 400; }
+        .unit-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; margin-bottom: 6px; background: #0f3460; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .unit-item:hover { background: #1a2744; transform: translateX(2px); }
+        .unit-item .unit-info { flex: 1; }
+        .unit-item .unit-title { font-size: 13px; font-weight: 600; color: #eee; }
+        .unit-item .unit-meta { font-size: 11px; color: #888; margin-top: 2px; }
+        .unit-item .unit-status { font-size: 18px; margin-left: 8px; }
+        /* --- Targets Panel (real-time vocab hits) --- */
+        .targets-panel {
+            display: none;
+            background: #16213e;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            border: 1px solid #1a2744;
+        }
+        .targets-panel.active { display: block; }
+        .targets-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .targets-header .title {
+            font-size: 13px;
+            color: #4ade80;
+            font-weight: 600;
+        }
+        .targets-header .accuracy {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        .targets-header .accuracy.high { color: #4ade80; background: rgba(74,222,128,0.15); }
+        .targets-header .accuracy.mid  { color: #f59e0b; background: rgba(245,158,11,0.15); }
+        .targets-header .accuracy.low  { color: #ef4444; background: rgba(239,68,68,0.15); }
+        .targets-body { display: none; }
+        .targets-panel.open .targets-body { display: block; }
+        .targets-section-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 6px 0 4px 0;
+        }
+        .targets-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .target-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.4s ease;
+            white-space: nowrap;
+        }
+        .target-tag.vocab {
+            background: #0f3460;
+            color: #556;
+            border: 1px solid transparent;
+        }
+        .target-tag.vocab.hit {
+            background: #1a472a;
+            color: #4ade80;
+            border-color: rgba(74,222,128,0.3);
+            animation: hitPop 0.4s ease;
+        }
+        @keyframes hitPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+        .target-tag .check { display: none; font-size: 10px; }
+        .target-tag.hit .check { display: inline; }
+        /* --- 我的教材（创建教材） --- */
+        .editor-card { width: min(620px, 94vw); max-height: 88vh; }
+        .editor-intro { font-size: 12px; color: #999; line-height: 1.7; margin-bottom: 12px; }
+        .link-btn { background: none; border: none; color: #4ade80; cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline; }
+        .link-btn:hover { color: #22c55e; }
+        .editor-input { width: 100%; padding: 10px 11px; border-radius: 8px; border: 1px solid #1a2744; background: #0f3460; color: #eee; font-size: 14px; font-family: inherit; margin-bottom: 12px; }
+        .editor-problems { background: #2d1b1b; border: 1px solid #ef4444; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px; color: #fca5a5; line-height: 1.7; white-space: pre-wrap; }
+        .editor-ok { background: #1a2e1b; border: 1px solid #4ade80; color: #86efac; }
+        .unit-editor { background: #0f3460; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+        .unit-editor-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .unit-editor-head .unit-no { font-size: 13px; font-weight: 600; color: #4ade80; }
+        .unit-remove { background: none; border: none; color: #888; cursor: pointer; font-size: 12px; }
+        .unit-remove:hover { color: #ef4444; }
+        .unit-title-input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #1a2744; background: #16213e; color: #eee; font-size: 13px; font-family: inherit; margin-bottom: 8px; }
+        .paste-toggle { background: none; border: 1px dashed #2d4a22; border-radius: 6px; color: #4ade80; cursor: pointer; font-size: 12px; padding: 7px 10px; width: 100%; margin-bottom: 8px; }
+        .paste-toggle:hover { border-color: #4ade80; }
+        .paste-box { display: none; margin-bottom: 8px; }
+        .paste-box.open { display: block; }
+        .paste-box textarea { width: 100%; min-height: 90px; }
+        .paste-box .paste-hint { font-size: 11px; color: #777; margin: 4px 0 6px; line-height: 1.6; }
+        .unit-field-label { font-size: 11px; color: #888; margin: 6px 0 3px; display: block; }
+        .unit-field-label .req { color: #f59e0b; }
+        .unit-editor textarea { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #1a2744; background: #16213e; color: #eee; font-size: 13px; font-family: inherit; resize: vertical; line-height: 1.6; }
+        .unit-editor textarea:focus { outline: none; border-color: #4ade80; }
+        .cjk-warn { display: none; font-size: 11px; color: #f59e0b; margin-top: 3px; }
+        .cjk-warn.show { display: block; }
+        .editor-actions { display: flex; gap: 8px; margin: 14px 0 10px; flex-wrap: wrap; }
+        .editor-actions .spacer { flex: 1; }
+        .editor-back { width: 100%; padding: 10px; border: 1px solid #1a2744; border-radius: 6px; background: transparent; color: #888; cursor: pointer; font-size: 13px; }
+        .book-btn { width:100%; padding: 11px; border: 1px dashed #2d4a22; border-radius: 8px; background: transparent; color: #4ade80; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; margin-bottom: 12px; }
+        .book-btn:hover { border-color: #4ade80; background: rgba(74, 222, 128, 0.06); }
+        /* 选课页内联的编辑/删除与单元排序 */
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .book-manage-btn { background: none; border: none; cursor: pointer; font-size: 13px; padding: 2px 4px; opacity: .7; transition: all .15s; }
+        .book-manage-btn:hover { opacity: 1; transform: scale(1.15); }
+        .unit-tools { display: flex; align-items: center; gap: 2px; }
+        .unit-move { background: none; border: none; color: #4ade80; cursor: pointer; font-size: 13px; padding: 2px 6px; }
+        .unit-move:hover { color: #22c55e; transform: scale(1.15); }
+        .unit-move:disabled { color: #333; cursor: default; transform: none; }
+    </style>
+</head>
+<body>
+    <div id="studentPicker" class="picker-overlay">
+        <div class="picker-card">
+            <h2>👧 选择学生</h2>
+            <div id="studentList"></div>
+            <div class="student-new">
+                <input id="newStudentName" placeholder="学生姓名（必填）">
+                <input id="newStudentAge" type="number" min="3" max="18" placeholder="年龄（如 8）">
+                <select id="newStudentLangBg" title="母语 / 语言背景">
+                    <option value="中文" selected>中文</option>
+                    <option value="海外华人家庭">海外华人家庭</option>
+                </select>
+                <input id="newStudentInterests" placeholder="兴趣，逗号分隔，如：guitar, music">
+                <button id="createStudentBtn">➕ 添加学生</button>
+            </div>
+        </div>
+    </div>
+    <div id="coursePicker" class="picker-overlay hidden">
+        <div class="picker-card">
+            <h2>📚 选择课程</h2>
+            <div id="courseList" style="margin-bottom: 12px;"></div>
+            <div style="margin-bottom: 12px;">
+                <button id="openBookEditorBtn" class="book-btn">📖 我的教材 · 创建一本</button>
+                <button id="freeModeBtn" style="width:100%;padding:12px;border:2px solid #4ade80;border-radius:8px;background:transparent;color:#4ade80;cursor:pointer;font-size:15px;font-weight:600;transition:all 0.2s;">
+                    💬 自由对话
+                </button>
+                <div style="font-size:11px;color:#666;text-align:center;margin-top:6px;">围绕你感兴趣的话题自由练习英语</div>
+            </div>
+            <div class="advanced-settings" id="advancedSettings">
+                <div class="advanced-header" onclick="toggleAdvanced()">
+                    <span>⚙️ 高级设置</span>
+                    <span class="advanced-summary" id="advancedSummary">-</span>
+                    <span style="color:#666">▼</span>
+                </div>
+                <div class="advanced-body">
+                    <label class="advanced-label" for="teacherSelect">老师</label>
+                    <select id="teacherSelect"></select>
+                    <label class="advanced-label" for="styleSelect">说话风格</label>
+                    <select id="styleSelect"></select>
+                    <div class="advanced-hint">老师由后台设定，不能改名。选择会被记住，下次直接沿用。</div>
+                </div>
+            </div>
+            <button onclick="backToStudentPicker()" style="width:100%;padding:10px;border:1px solid #1a2744;border-radius:6px;background:transparent;color:#888;cursor:pointer;font-size:13px;">← 返回选择学生</button>
+        </div>
+    </div>
+    <div id="bookEditor" class="picker-overlay hidden">
+        <div class="picker-card editor-card">
+            <h2 id="editorHeading">📖 我的教材</h2>
+            <div class="editor-intro">
+                手里是纸质课本？三步就行：① 用手机拍下课本的单元页 → ② 把照片发给任意 AI
+                （豆包 / Kimi / ChatGPT 都行），让它按我们的提示词整理 → ③ 把 AI 的回复粘贴进
+                下面每个单元的「从 AI 提取结果粘贴」框里。
+                <button class="link-btn" id="copyPromptBtn">复制提取提示词</button>
+            </div>
+            <div id="editorProblems" class="editor-problems" style="display:none"></div>
+            <label class="unit-field-label" for="bookTitleInput">教材名称 <span class="req">*</span></label>
+            <input id="bookTitleInput" class="editor-input" placeholder="例如：人教版四年级上册">
+            <div id="unitList"></div>
+            <div class="editor-actions">
+                <button id="addUnitBtn" class="setup-btn ghost">➕ 添加单元</button>
+                <span class="spacer"></span>
+                <button id="checkBookBtn" class="setup-btn ghost">✓ 检查</button>
+                <button id="saveBookBtn" class="setup-btn">💾 保存教材</button>
+            </div>
+            <button class="editor-back" id="closeBookEditorBtn">← 返回，暂时不保存</button>
+        </div>
+    </div>
+    <div id="setupOverlay" class="picker-overlay setup-overlay hidden">
+        <div class="picker-card setup-card">
+            <h2 id="setupTitle"></h2>
+            <div class="setup-steps" id="setupSteps">
+                <!-- 引导素材由 /api/setup/status 的 vendor 段下发（app/vendors/<厂商>.py），前端只渲染不持有文案 -->
+            </div>
+            <div class="setup-row">
+                <button class="setup-btn ghost" id="setupRegisterBtn"></button>
+            </div>
+            <div class="setup-row">
+                <input class="setup-input" id="setupKeyInput" type="text" autocomplete="off">
+            </div>
+            <div class="setup-row">
+                <button class="setup-btn" id="setupSaveBtn">② 保存并测试</button>
+                <button class="setup-btn ghost" id="setupCancelBtn" style="display:none">取消</button>
+            </div>
+            <div class="setup-result" id="setupResult"></div>
+            <div class="setup-note" id="setupNote"></div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="brand"><img class="brand-logo" src="/static/logo-header.png" alt="PrivaGlot"><h1>PrivaGlot</h1></div>
+        <div class="status disconnected" id="status">请选择学生开始上课</div>
+        <div class="session-summary" id="sessionSummary">
+            <h3>⭐ Session Complete!</h3>
+            <div id="summaryContent"></div>
+        </div>
+        <div class="progress-panel" id="progressPanel" onclick="toggleProgress()">
+            <div class="progress-header">
+                <span id="progressWeek">📚 课程</span>
+                <span id="progressTheme">-</span>
+                <span style="color:#666">▼</span>
+            </div>
+            <div class="progress-body">
+                <div class="progress-row">
+                    <span class="progress-label">当前课程</span>
+                    <span class="progress-value" id="progressThemeDetail">-</span>
+                </div>
+                </div>
+        </div>
+        <!-- Targets panel: real-time vocab/pattern hit tracking -->
+        <div class="targets-panel" id="targetsPanel" onclick="toggleTargets()">
+            <div class="targets-header">
+                <span class="title">🎯 本课目标</span>
+                <span class="accuracy" id="targetsAccuracy" style="display:none">0%</span>
+            </div>
+            <div class="targets-body">
+                <div class="targets-section-label">词汇</div>
+                <div class="targets-tags" id="vocabTags"></div>
+            </div>
+        </div>
+        </div>
+        <div class="mode-info" style="text-align:center; margin-bottom:8px; font-size:12px; color:#888;">
+            <strong>对讲机模式</strong>: 按住说话，松开发送
+        </div>
+        <div class="chat-area" id="chatArea">
+            <div class="message assistant">
+                <div class="message-label">Teacher</div>
+                <div class="message-text">Hello! Click "开始上课" to begin today's lesson!</div>
+            </div>
+        </div>
+        <div class="indicator recording" id="indicatorRecording">🔴 录音中... (松开发送)</div>
+        <div class="indicator processing" id="indicatorProcessing">⏳ 处理中...</div>
+        <div class="controls">
+            <button class="btn-begin-lesson" id="beginLessonBtn">🎓 开始上课</button>
+            <button class="btn btn-record" id="recordBtn" disabled style="display:none;">🎤</button>
+            <button class="btn btn-end" id="endLessonBtn" disabled style="display:none;">⏹ 结束课程</button>
+        </div>
+        <div class="session-actions" id="sessionActions">
+            <button class="btn btn-end" id="nextLessonBtn">📚 回选课列表</button>
+            <button class="btn btn-end" id="switchStudentBtn">👥 切换学生</button>
+        </div>
+        <div class="mode-info" id="modeInfo"><strong>对讲机模式</strong>: 按住说话，松开发送
+            <a href="#" id="setupLink" style="color:#4ade80;margin-left:10px;text-decoration:none;">⚙️ API Key</a>
+        </div>
+    </div>
+
+    <script>
+        // 网页只在本机 http://127.0.0.1:8000 上服务（绑定钉死见 app/config.py），
+        // 固定用 ws://，不存在 HTTPS 部署形态。
+        const WS_URL = `ws://${window.location.host}/ws/audio`;
+
+        let ws = null;
+        let mediaStream = null;
+        let isRecording = false;
+        let isProcessing = false;
+        let currentAssistantMessage = null;
+        let lessonComplete = false;
+        let lessonEnded = false;
+        let selectedStudentId = null;
+        let selectedTextbook = null;
+        let selectedUnitId = null;
+        let freeModeSelected = false;
+        // 课中掉线恢复（#43）：lessonLive=本连接上开过课且未结束；
+        // awaitingRebegin=课中掉线重连后等用户点「重新进入课程」。
+        // 续课语义＝同参数重开一节新课（旧课断线时已结算）。
+        let lessonLive = false;
+        let awaitingRebegin = false;
+
+        // Teacher selection. The name comes from the server and is display-only
+        // here — the frontend can pick a teacher, never rename one.
+        let teacherName = 'Teacher';
+        let teacherChoices = [];   // [{id, name, voice, style}]
+        let styleChoices = [];     // [{id, label}]
+        let currentTeacherId = '';
+        let teacherStyle = 'calm';
+        
+        // Audio playback queue for sentence-level streaming
+        let audioQueue = [];
+        let isPlaying = false;
+        let currentAudio = null;
+        // Web Audio context for iOS-safe playback (unlocked on first touch)
+        let audioCtx = null;
+
+        const statusEl = document.getElementById('status');
+        const chatArea = document.getElementById('chatArea');
+        const recordBtn = document.getElementById('recordBtn');
+        const endLessonBtn = document.getElementById('endLessonBtn');
+        const beginLessonBtn = document.getElementById('beginLessonBtn');
+
+        const indicatorRecording = document.getElementById('indicatorRecording');
+        const indicatorProcessing = document.getElementById('indicatorProcessing');
+        const modeInfo = document.getElementById('modeInfo');
+        
+        function connectWebSocket(studentId) {
+            ws = new WebSocket(WS_URL);
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ type: 'select_student', student_id: studentId }));
+                statusEl.textContent = 'Connected ✓';
+                statusEl.className = 'status connected';
+                if (awaitingRebegin) {
+                    beginLessonBtn.style.display = '';
+                    beginLessonBtn.disabled = false;
+                    beginLessonBtn.textContent = '🔄 重新进入课程';
+                }
+                updateButtons();
+            };
+            ws.onclose = (ev) => {
+                if (lessonEnded) {
+                    hideAllIndicators();
+                    statusEl.textContent = '课程已结束 ✓';
+                    statusEl.className = 'status connected';
+                    return;
+                }
+                if (lessonLive) awaitingRebegin = true;
+                statusEl.textContent = 'Disconnected ✗';
+                statusEl.className = 'status disconnected';
+                recordBtn.disabled = true;
+                setTimeout(() => connectWebSocket(selectedStudentId), 3000);
+            };
+            ws.onerror = (e) => console.error('WS error:', e);
+            ws.onmessage = (event) => handleServerMessage(JSON.parse(event.data));
+        }
+        
+        function handleServerMessage(msg) {
+            switch (msg.type) {
+                case 'student_info':
+                    updateStudentInfo(msg);
+                    break;
+                case 'session_info':
+                    updateSessionInfo(msg);
+                    break;
+                case 'lesson_complete':
+                    lessonLive = false;
+                    onLessonComplete(msg);
+                    break;
+                case 'lesson_eval_result':
+                    onLessonEvalResult(msg);
+                    break;
+                case 'lesson_eval_failed':
+                    onLessonEvalFailed(msg);
+                    break;
+                case 'free_session_complete':
+                    lessonLive = false;
+                    onFreeSessionComplete(msg);
+                    break;
+                case 'transcription':
+                    console.log('[WS ←]', 'transcription:', msg.text, '| DOM:', chatArea.children.length, 'msgs');
+                    addUserMessage(msg.text);
+                    indicatorProcessing.textContent = '✍️ 对方输入中…';
+                    break;
+                case 'llm_token':
+                    if (!currentAssistantMessage) {
+                        currentAssistantMessage = addAssistantMessage('');
+                        console.log('[WS ←]', 'llm_token (NEW bubble):', JSON.stringify(msg.text).substring(0,40), '| DOM:', chatArea.children.length, 'msgs');
+                    } else {
+                        console.log('[WS ←]', 'llm_token (APPEND):', JSON.stringify(msg.text).substring(0,40), '| DOM:', chatArea.children.length, 'msgs');
+                    }
+                    appendToMessage(currentAssistantMessage, msg.text);
+                    break;
+                case 'llm_done':
+                    const doneText = currentAssistantMessage?.querySelector('.message-text')?.textContent?.substring(0, 40) || '(null)';
+                    console.log('[WS ←]', 'llm_done | bubble text:', JSON.stringify(doneText));
+                    currentAssistantMessage = null;
+                    break;
+                case 'llm_cleaned':
+                    // Replace displayed text with cleaned version (no emojis/Chinese)
+                    if (currentAssistantMessage) {
+                        currentAssistantMessage.querySelector('.message-text').textContent = msg.text;
+                    }
+                    break;
+                case 'tts_audio':
+                    queueAudio(msg.data);
+                    indicatorProcessing.textContent = '🔊 播放回复中…';
+                    break;
+                case 'session_started':
+                    lessonLive = true;
+                    awaitingRebegin = false;
+                    beginLessonBtn.style.display = 'none';
+                    recordBtn.style.display = '';
+                    endLessonBtn.style.display = '';
+                    endLessonBtn.textContent = '⏹ 结束课程';
+                    recordBtn.disabled = false;
+                    endLessonBtn.disabled = false;
+                    isProcessing = false;
+                    updateButtons();
+                    break;
+                case 'lesson_targets':
+                    initTargetsPanel(msg.vocabulary || []);
+                    break;
+                case 'vocab_hit':
+                    updateTargetsPanel(
+                        msg.vocab_hits || [],
+                        msg.accuracy || 0
+                    );
+                    break;
+                case 'error':
+                    addErrorMessage(msg.message);
+                    hideAllIndicators();
+                    isProcessing = false;
+                    updateButtons();
+                    break;
+            }
+        }
+        
+        function addUserMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'message user';
+            div.innerHTML = `<div class="message-label">You</div><div class="message-text">${escapeHtml(text)}</div>`;
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+        function addAssistantMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'message assistant';
+            div.innerHTML = `<div class="message-label">${escapeHtml(teacherName)}</div><div class="message-text">${escapeHtml(text)}</div>`;
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return div;
+        }
+        function appendToMessage(div, text) { 
+            div.querySelector('.message-text').textContent += text; 
+            chatArea.scrollTop = chatArea.scrollHeight; 
+        }
+        function addErrorMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'message error';
+            div.textContent = text;
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+        function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+        function addSeparator(text) {
+            const div = document.createElement('div');
+            div.className = 'chat-separator';
+            div.innerHTML = `<span>${escapeHtml(text)}</span>`;
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+        
+        function updateStudentInfo(info) {
+            const h1 = document.querySelector('h1');
+            if (h1 && info.name) {
+                h1.textContent = `${info.name}'s English Tutor`;
+            }
+            // The server is authoritative for who teaches this session.
+            if (info.teacher_name) setTeacherName(info.teacher_name);
+            updateGreetingPlaceholder(info.name);
+        }
+
+        function updateSessionInfo(info) {
+            // Update progress panel with session context
+            const weekEl = document.getElementById('progressWeek');
+            const themeEl = document.getElementById('progressTheme');
+            if (!info.textbook) {
+                // Free conversation — no unit context, clear any lesson residue
+                weekEl.textContent = '💬 自由对话';
+                themeEl.textContent = '随便聊聊';
+                statusEl.textContent = '💬 自由对话';
+                statusEl.className = 'status connected';
+                return;
+            }
+            weekEl.textContent = `📖 ${info.textbook} / ${info.unit_id}`;
+            if (info.unit_title) {
+                themeEl.textContent = info.unit_title;
+                statusEl.textContent = `📖 ${info.unit_title}`;
+                statusEl.className = 'status connected';
+            }
+        }
+
+        function onLessonComplete(msg) {
+            console.log('[WS ←]', 'lesson_complete:', JSON.stringify(msg).substring(0, 120));
+            lessonComplete = true;
+            hideAllIndicators();
+
+            // Restore end button (was set to "⏳ 生成中..." by endLesson())
+            endLessonBtn.textContent = '已结束 ✓';
+            endLessonBtn.disabled = true;
+            recordBtn.disabled = true;
+
+            // Update status bar
+            statusEl.textContent = '课程已结束 ✓';
+            statusEl.className = 'status connected';
+
+            // Show summary panel (local vocabulary coverage report)
+            updateSessionSummary({
+                accuracy: msg.accuracy,
+                total_turns: msg.total_turns,
+                duration: msg.duration_minutes,
+                vocabulary_correct: msg.vocab_used || [],
+                vocabulary_errors: msg.vocab_missed || [],
+            });
+            document.getElementById('sessionSummary').style.display = 'block';
+
+            // The instant report is local; the AI evaluation lands later as
+            // its own message. Reserve a slot for it so the wait is visible.
+            if (msg.eval === 'pending') {
+                document.getElementById('summaryContent').insertAdjacentHTML('beforeend',
+                    '<div id="evalPending" style="margin-top:12px;font-size:11px;color:#888">🤖 AI 正在评估本课学习情况，约需 1 分钟…</div>');
+            }
+
+            // Show action buttons (再上一节课 / 切换学生)
+            showSessionActions();
+        }
+
+        function appendEvalBlock(html) {
+            const pending = document.getElementById('evalPending');
+            if (pending) pending.remove();
+            document.getElementById('summaryContent').insertAdjacentHTML('beforeend', html);
+        }
+
+        function onLessonEvalResult(msg) {
+            console.log('[WS ←]', 'lesson_eval_result:', JSON.stringify(msg).substring(0, 120));
+            const pct = Math.max(0, Math.min(100, msg.progress ?? 0));
+            const color = pct >= 80 ? '#4ade80' : pct >= 50 ? '#f59e0b' : '#4a90e2';
+            let html = '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a3a5e;">';
+            html += '<div style="font-size:11px;color:#888;margin-bottom:4px">🎯 单元进度（AI 评估）</div>';
+            html += `<div style="font-size:24px;font-weight:700;color:${color}">${pct}%</div>`;
+            html += `<div class="progress-bar" style="margin-top:4px;"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>`;
+            if (typeof msg.carry_count === 'number') {
+                html += `<div style="font-size:11px;color:#888;margin-top:6px">下次课将重点练习 ${msg.carry_count} 个条目</div>`;
+            }
+            if (msg.note) {
+                html += `<div style="background:#16213e;border-radius:6px;padding:8px;margin-top:8px;font-size:12px;color:#ccc;line-height:1.5">📝 ${escapeHtml(msg.note)}</div>`;
+            }
+            html += '</div>';
+            appendEvalBlock(html);
+        }
+
+        function onLessonEvalFailed(msg) {
+            console.log('[WS ←]', 'lesson_eval_failed:', JSON.stringify(msg).substring(0, 120));
+            const text = msg.message || '本课的进度评估未能完成，学习进度没有保存。课程本身已完成。';
+            appendEvalBlock(
+                `<div style="margin-top:12px;background:#2d1b1b;border:1px solid #ef4444;border-radius:6px;padding:8px;font-size:12px;color:#fca5a5;line-height:1.5">⚠️ ${escapeHtml(text)}</div>`);
+        }
+
+        function onFreeSessionComplete(msg) {
+            console.log('[WS ←]', 'free_session_complete:', JSON.stringify(msg).substring(0, 200));
+            lessonComplete = true;
+            hideAllIndicators();
+
+            endLessonBtn.textContent = '已结束 ✓';
+            endLessonBtn.disabled = true;
+            recordBtn.disabled = true;
+
+            statusEl.textContent = '自由对话已结束 ✓';
+            statusEl.className = 'status connected';
+
+            // Build free mode summary
+            const el = document.getElementById('sessionSummary');
+            const content = document.getElementById('summaryContent');
+            let html = '';
+
+            // Stats row
+            html += `<div style="display:flex;justify-content:space-around;margin-bottom:12px;">`;
+            html += `<div style="text-align:center"><div style="font-size:18px;color:#eee">${msg.total_turns || 0}</div><div style="font-size:10px;color:#888">对话轮次</div></div>`;
+            html += `<div style="text-align:center"><div style="font-size:18px;color:#eee">${msg.duration_minutes || 0} min</div><div style="font-size:10px;color:#888">对话时长</div></div>`;
+            html += `</div>`;
+
+            // Topics
+            if (msg.topics && msg.topics.length > 0) {
+                html += `<div style="margin-bottom:8px;font-size:11px;color:#888">🗣️ 聊了什么</div>`;
+                html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">`;
+                msg.topics.forEach(t => {
+                    html += `<span class="tag" style="background:#0f3460;color:#4ade80">${escapeHtml(t)}</span>`;
+                });
+                html += `</div>`;
+            }
+
+            // New interests
+            if (msg.new_interests && msg.new_interests.length > 0) {
+                html += `<div style="margin-bottom:8px;font-size:11px;color:#888">💡 发现新兴趣</div>`;
+                html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">`;
+                msg.new_interests.forEach(i => {
+                    html += `<span class="tag" style="background:#1a472a;color:#4ade80">✨ ${escapeHtml(i)}</span>`;
+                });
+                html += `</div>`;
+            }
+
+            // Summary
+            if (msg.summary) {
+                html += `<div style="background:#16213e;border-radius:6px;padding:8px;margin-top:8px;font-size:12px;color:#ccc;line-height:1.5">📝 ${escapeHtml(msg.summary)}</div>`;
+            }
+
+            content.innerHTML = html;
+            el.style.display = 'block';
+
+            showSessionActions();
+        }
+
+        function endLesson() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            if (lessonEnded) return;
+            lessonEnded = true;
+            hideAllIndicators();
+            indicatorProcessing.classList.add('active');
+            indicatorProcessing.textContent = '⏳ 正在生成课程小结…';
+            endLessonBtn.disabled = true;
+            endLessonBtn.textContent = '⏳ 生成中...';
+            ws.send(JSON.stringify({ type: 'end_session' }));
+        }
+
+        function showSessionActions() {
+            document.getElementById('sessionActions').style.display = 'flex';
+        }
+
+        function resetForNewSession() {
+            lessonEnded = false;
+            lessonLive = false;
+            awaitingRebegin = false;
+            lessonComplete = false;
+            isProcessing = false;
+            isRecording = false;
+            audioQueue = [];
+            isPlaying = false;
+            stopCurrentAudio();
+            currentAssistantMessage = null;
+            chatArea.innerHTML = '';
+            beginLessonBtn.style.display = '';
+            beginLessonBtn.disabled = false;
+            beginLessonBtn.textContent = '🎓 开始上课';
+            recordBtn.style.display = 'none';
+            endLessonBtn.style.display = 'none';
+            freeModeSelected = false;
+            hideTargetsPanel();
+            document.getElementById('progressWeek').textContent = '📚 课程';
+            document.getElementById('progressTheme').textContent = '-';
+            addAssistantMessage(greetingText());
+            document.getElementById('sessionSummary').style.display = 'none';
+            document.getElementById('summaryContent').innerHTML = '';
+            document.getElementById('sessionActions').style.display = 'none';
+            endLessonBtn.textContent = '⏹ 结束课程';
+            endLessonBtn.disabled = false;
+            statusEl.textContent = 'Connecting...';
+            statusEl.className = 'status disconnected';
+            hideAllIndicators();
+        }
+
+        function startNextLesson() {
+            resetForNewSession();
+            document.getElementById('studentPicker').classList.add('hidden');
+            document.getElementById('coursePicker').classList.remove('hidden');
+            loadTextbooks();
+        }
+
+        function switchStudent() {
+            resetForNewSession();
+            document.getElementById('studentPicker').classList.remove('hidden');
+            loadStudents();
+        }
+        
+        function toggleProgress() {
+            document.getElementById('progressPanel').classList.toggle('open');
+        }
+
+        // --- Targets panel (real-time vocab hit tracking) ---
+        let hitVocab = new Set();
+
+        function toggleTargets() {
+            document.getElementById('targetsPanel').classList.toggle('open');
+        }
+
+        function initTargetsPanel(vocabList) {
+            hitVocab = new Set();
+            const panel = document.getElementById('targetsPanel');
+            panel.classList.add('active');
+            panel.classList.add('open');  // expanded by default so user sees targets
+
+            // Render vocab tags
+            const vocabContainer = document.getElementById('vocabTags');
+            vocabContainer.innerHTML = '';
+            vocabList.forEach(w => {
+                const tag = document.createElement('span');
+                tag.className = 'target-tag vocab';
+                tag.dataset.word = w;
+                tag.innerHTML = `<span class="check">✓</span>${escapeHtml(w)}`;
+                vocabContainer.appendChild(tag);
+            });
+
+            // Reset accuracy badge
+            const accEl = document.getElementById('targetsAccuracy');
+            accEl.style.display = 'none';
+            accEl.textContent = '0%';
+            accEl.className = 'accuracy';
+        }
+
+        function updateTargetsPanel(vocabHits, accuracy) {
+            // Mark newly hit vocab
+            vocabHits.forEach(w => {
+                if (!hitVocab.has(w)) {
+                    hitVocab.add(w);
+                    const tag = document.querySelector(`.target-tag.vocab[data-word="${CSS.escape(w)}"]`);
+                    if (tag) tag.classList.add('hit');
+                }
+            });
+
+            // Update accuracy badge
+            const pct = Math.round(accuracy * 100);
+            const accEl = document.getElementById('targetsAccuracy');
+            accEl.style.display = '';
+            accEl.textContent = `${pct}%`;
+            accEl.className = 'accuracy ' + (pct >= 60 ? 'high' : pct >= 30 ? 'mid' : 'low');
+        }
+
+        function hideTargetsPanel() {
+            document.getElementById('targetsPanel').classList.remove('active');
+        }
+
+        function updateSessionSummary(info) {
+            const el = document.getElementById('sessionSummary');
+            const content = document.getElementById('summaryContent');
+            let html = '';
+
+            // Vocabulary coverage with visual bar
+            if (info.accuracy !== undefined) {
+                const pct = Math.round(info.accuracy * 100);
+                const color = pct >= 80 ? '#4ade80' : pct >= 60 ? '#f59e0b' : '#ef4444';
+                html += `<div style="text-align:center;margin-bottom:10px;">
+                    <div style="font-size:32px;font-weight:700;color:${color}">${pct}%</div>
+                    <div style="font-size:11px;color:#888">本课词汇覆盖率</div>
+                    <div class="progress-bar" style="margin-top:4px;">
+                        <div class="progress-fill" style="width:${pct}%;background:${color}"></div>
+                    </div>
+                </div>`;
+            }
+
+            // Stats row
+            html += `<div style="display:flex;justify-content:space-around;margin-bottom:10px;">`;
+            html += `<div style="text-align:center"><div style="font-size:18px;color:#eee">${info.total_turns || 0}</div><div style="font-size:10px;color:#888">对话轮次</div></div>`;
+            html += `<div style="text-align:center"><div style="font-size:18px;color:#eee">${info.duration || 0} min</div><div style="font-size:10px;color:#888">课程时长</div></div>`;
+            html += `</div>`;
+
+            // Vocabulary used / missed
+            const vocabCorrect = info.vocabulary_correct || [];
+            const vocabErrors = info.vocabulary_errors || [];
+            if (vocabCorrect.length > 0 || vocabErrors.length > 0) {
+                html += `<div style="margin-top:8px;font-size:11px;color:#888">词汇表现</div>`;
+                html += `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;">`;
+                vocabCorrect.slice(0, 20).forEach(w => {
+                    html += `<span class="tag" style="background:#1a472a;color:#4ade80">✓ ${escapeHtml(w)}</span>`;
+                });
+                vocabErrors.slice(0, 10).forEach(w => {
+                    html += `<span class="tag" style="background:#2d1b1b;color:#ef4444">✗ ${escapeHtml(w)}</span>`;
+                });
+                html += `</div>`;
+            }
+
+            content.innerHTML = html;
+            el.style.display = 'block';
+        }
+        // iOS Safari blocks programmatic audio playback until the user has
+        // interacted with the page. Unlock a shared AudioContext on the first
+        // (and every) touch/click so TTS playback works on iPhone/iPad.
+        function unlockAudio() {
+            try {
+                if (!audioCtx) {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if (AC) audioCtx = new AC();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            } catch (e) {
+                console.error('Audio unlock failed:', e);
+            }
+        }
+        ['pointerdown', 'touchstart', 'click'].forEach((evt) =>
+            window.addEventListener(evt, unlockAudio, { passive: true })
+        );
+
+        function stopCurrentAudio() {
+            if (currentAudio) {
+                try {
+                    if (typeof currentAudio.stop === 'function') currentAudio.stop();
+                    else currentAudio.pause();
+                } catch (e) { /* ignore */ }
+                currentAudio = null;
+            }
+        }
+
+        function showAudioHint() {
+            try {
+                statusEl.textContent = '听不到声音？请检查手机静音开关';
+                statusEl.className = 'status disconnected';
+                setTimeout(() => {
+                    if (statusEl.textContent.indexOf('听不到声音') === 0) {
+                        const connected = ws && ws.readyState === WebSocket.OPEN;
+                        statusEl.textContent = connected ? 'Connected ✓' : 'Disconnected ✗';
+                        statusEl.className = connected ? 'status connected' : 'status disconnected';
+                    }
+                }, 4000);
+            } catch (e) { /* ignore */ }
+        }
+
+        // Sentence-level audio queue
+        function queueAudio(base64) {
+            audioQueue.push(base64);
+            if (!isPlaying) playNextAudio();
+        }
+        
+        async function playNextAudio() {
+            if (audioQueue.length === 0) {
+                isPlaying = false;
+                hideAllIndicators();
+                // Keep isProcessing=true during the 2.5s delay
+                // to prevent user from starting new recording too early
+                isProcessing = false;
+                updateButtons();
+                return;
+            }
+            
+            isPlaying = true;
+            // Do NOT mute the mic here. In walkie-talkie mode the record button
+            // is already disabled while TTS plays (isProcessing), so muting the
+            // track is unnecessary — and before this fix the track was never
+            // re-enabled (the re-enable lived in the removed real-time mode),
+            // leaving the mic silent for the rest of the session.
+            const base64 = audioQueue.shift();
+            
+            try {
+                const data = atob(base64);
+                const arr = new Uint8Array(data.length);
+                for (let i = 0; i < data.length; i++) arr[i] = data.charCodeAt(i);
+
+                let played = false;
+
+                // Prefer Web Audio playback (most reliable on iOS).
+                if (audioCtx) {
+                    if (audioCtx.state === 'suspended') {
+                        try { await audioCtx.resume(); } catch (e) { /* ignore */ }
+                    }
+                    if (audioCtx.state === 'running') {
+                        try {
+                            await new Promise((resolve, reject) => {
+                                audioCtx.decodeAudioData(arr.buffer.slice(0), (buf) => {
+                                    const source = audioCtx.createBufferSource();
+                                    source.buffer = buf;
+                                    source.connect(audioCtx.destination);
+                                    source.onended = () => resolve();
+                                    currentAudio = source;
+                                    source.start();
+                                }, (err) => reject(err));
+                            });
+                            currentAudio = null;
+                            played = true;
+                        } catch (decodeErr) {
+                            console.error('Web Audio decode failed, falling back to <audio>:', decodeErr);
+                        }
+                    }
+                }
+
+                if (!played) {
+                    // Fallback: <audio> element with a blob URL.
+                    let blob;
+                    if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46) {
+                        blob = new Blob([arr], { type: 'audio/wav' });
+                    } else {
+                        blob = new Blob([arr], { type: 'audio/mp3' });
+                    }
+                    const url = URL.createObjectURL(blob);
+                    await new Promise((resolve) => {
+                        const el = new Audio(url);
+                        currentAudio = el;
+                        el.onended = () => { URL.revokeObjectURL(url); currentAudio = null; resolve(); };
+                        el.onerror = () => { URL.revokeObjectURL(url); currentAudio = null; showAudioHint(); resolve(); };
+                        el.play().catch((e) => {
+                            console.error('Audio play error:', e);
+                            currentAudio = null;
+                            showAudioHint();
+                            resolve();
+                        });
+                    });
+                }
+
+                playNextAudio();
+            } catch (e) {
+                console.error('Audio play error:', e);
+                showAudioHint();
+                playNextAudio();
+            }
+        }
+        
+        
+        // Auto-request microphone permission on page load
+        window.addEventListener('load', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Got permission - keep the stream for later use
+                mediaStream = stream;
+                console.log('Microphone permission granted');
+            } catch (e) {
+                console.log('Microphone permission denied or unavailable:', e.message);
+            }
+        });
+        
+        async function initAudio() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                return true;
+            } catch (e) { addErrorMessage('Could not access microphone.'); return false; }
+        }
+        
+        // Walkie-talkie mode
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordStartTime = 0;
+
+        // iOS Safari (e.g. iOS 16 on older iPhones) only records audio/mp4
+        // (AAC), while newer iOS / desktop browsers record audio/webm (Opus).
+        // Try every candidate via isTypeSupported() AND a constructor test:
+        // on some iOS versions isTypeSupported() lies, so we fall through.
+        function createRecorder(stream) {
+            const candidates = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/mp4',
+                'audio/mp4;codecs=mp4a.40.2',
+            ];
+            if (window.MediaRecorder && MediaRecorder.isTypeSupported) {
+                for (const t of candidates) {
+                    try {
+                        if (MediaRecorder.isTypeSupported(t)) {
+                            return new MediaRecorder(stream, { mimeType: t });
+                        }
+                    } catch (e) { /* try the next candidate */ }
+                }
+            }
+            // Fall back to the browser default (on iOS it picks mp4/AAC).
+            return new MediaRecorder(stream);
+        }
+        
+        function startRecording() {
+            if (!mediaStream) return;
+            if (!window.MediaRecorder) {
+                addErrorMessage('无法启动录音：当前浏览器不支持录音，请升级系统或换用 Safari');
+                return;
+            }
+            // Make sure the mic track is live before recording (defensive: some
+            // code paths historically muted it and never re-enabled it).
+            mediaStream.getAudioTracks().forEach(track => track.enabled = true);
+            audioChunks = [];
+            try {
+                mediaRecorder = createRecorder(mediaStream);
+            } catch (e) {
+                console.error('MediaRecorder init failed:', e);
+                addErrorMessage('无法启动录音：当前浏览器不支持录音格式');
+                return;
+            }
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                const duration = Date.now() - recordStartTime;
+                if (audioChunks.length === 0) return;
+                if (duration < 1000) {
+                    console.log(`[RECORD] Too short (${duration}ms) — discarding`);
+                    audioChunks = [];
+                    isProcessing = false;
+                    updateButtons();
+                    return;
+                }
+                const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                const reader = new FileReader();
+                reader.onloadend = () => sendAudio(reader.result.split(',')[1]);
+                reader.readAsDataURL(blob);
+            };
+            mediaRecorder.start(100);
+            recordStartTime = Date.now();
+            isRecording = true;
+            recordBtn.classList.add('recording');
+            indicatorRecording.classList.add('active');
+            recordBtn.textContent = '⏹️';
+        }
+        function stopRecording() {
+            if (!isRecording || !mediaRecorder) return;
+            const duration = Date.now() - recordStartTime;
+            mediaRecorder.stop();
+            isRecording = false;
+            recordBtn.classList.remove('recording');
+            indicatorRecording.classList.remove('active');
+            recordBtn.textContent = '🎤';
+        }
+        function sendAudio(base64) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            isProcessing = true;
+            indicatorProcessing.textContent = '📤 发送中…';
+            indicatorProcessing.classList.add('active');
+            recordBtn.disabled = true;
+            ws.send(JSON.stringify({ type: 'audio', data: base64 }));
+        }
+        
+        
+        recordBtn.addEventListener('mousedown', async (e) => { e.preventDefault(); if (isProcessing) return; if (!mediaStream) { const ok = await initAudio(); if (!ok) return; } startRecording(); });
+        recordBtn.addEventListener('mouseup', (e) => { e.preventDefault(); if (isRecording) stopRecording(); });
+        recordBtn.addEventListener('mouseleave', () => { if (isRecording) stopRecording(); });
+        recordBtn.addEventListener('touchstart', async (e) => { e.preventDefault(); if (isProcessing) return; if (!mediaStream) { const ok = await initAudio(); if (!ok) return; } startRecording(); });
+        recordBtn.addEventListener('touchend', (e) => { e.preventDefault(); if (isRecording) stopRecording(); });
+        endLessonBtn.addEventListener('click', endLesson);
+        beginLessonBtn.addEventListener('click', () => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            beginLessonBtn.disabled = true;
+            beginLessonBtn.textContent = freeModeSelected ? '⏳ 准备中…' : '⏳ 老师准备中…';
+            ws.send(JSON.stringify({
+                type: 'begin_session',
+                textbook: selectedTextbook || '',
+                unit_id: selectedUnitId || '',
+                mode: freeModeSelected ? 'free' : 'lesson',
+                teacher_id: currentTeacherId || '',
+                style: teacherStyle || '',
+            }));
+        });
+        document.getElementById('nextLessonBtn').addEventListener('click', startNextLesson);
+        document.getElementById('switchStudentBtn').addEventListener('click', switchStudent);
+        document.getElementById('freeModeBtn').addEventListener('click', selectFreeMode);
+
+        
+        function updateButtons() {
+            const wsOpen = ws && ws.readyState === WebSocket.OPEN;
+            recordBtn.disabled = isProcessing || lessonComplete || awaitingRebegin || !wsOpen;
+            endLessonBtn.disabled = lessonEnded || awaitingRebegin || !wsOpen || isProcessing;
+        }
+        function hideAllIndicators() {
+            indicatorRecording.classList.remove('active');
+            indicatorProcessing.classList.remove('active');
+            // Always restore the base text so a stale message (e.g. the
+            // "生成报告约需 30 秒" end-of-lesson hint) can never leak into
+            // the next lesson's processing indicator.
+            indicatorProcessing.textContent = '⏳ 处理中...';
+        }
+
+        // --- Teacher & delivery style (advanced settings) ---
+        function toggleAdvanced() {
+            document.getElementById('advancedSettings').classList.toggle('open');
+        }
+
+        async function loadTeachers(studentId) {
+            try {
+                const qs = studentId ? `?student_id=${encodeURIComponent(studentId)}` : '';
+                const res = await fetch(`/api/teachers${qs}`);
+                const data = await res.json();
+                teacherChoices = data.teachers || [];
+                styleChoices = data.styles || [];
+
+                // The server resolves the student's remembered pick (or the
+                // system default) — the frontend never decides this itself.
+                const sel = data.selected || {};
+                currentTeacherId = sel.teacher_id || data.default_teacher_id
+                    || (teacherChoices[0] && teacherChoices[0].id) || '';
+                teacherStyle = sel.style || styleForTeacher(currentTeacherId);
+
+                fillSelect(document.getElementById('teacherSelect'),
+                           teacherChoices, 'id', 'name', currentTeacherId);
+                fillSelect(document.getElementById('styleSelect'),
+                           styleChoices, 'id', 'label', teacherStyle);
+                applyTeacherName();
+            } catch (e) {
+                console.warn('无法加载教师列表:', e);
+            }
+        }
+
+        function fillSelect(selectEl, items, valueKey, labelKey, selectedValue) {
+            selectEl.innerHTML = '';
+            items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item[valueKey];
+                opt.textContent = item[labelKey];
+                selectEl.appendChild(opt);
+            });
+            if (selectedValue) selectEl.value = selectedValue;
+        }
+
+        function styleForTeacher(teacherId) {
+            const t = teacherChoices.find(x => x.id === teacherId);
+            return (t && t.style) || 'calm';
+        }
+
+        function styleLabel(styleId) {
+            const s = styleChoices.find(x => x.id === styleId);
+            return s ? s.label : styleId;
+        }
+
+        function setTeacherName(name) {
+            if (!name) return;
+            teacherName = name;
+            updateTeacherSummary();
+            updateGreetingPlaceholder();
+        }
+
+        function applyTeacherName() {
+            const t = teacherChoices.find(x => x.id === currentTeacherId);
+            if (t) teacherName = t.name;
+            updateTeacherSummary();
+            updateGreetingPlaceholder();
+        }
+
+        function updateTeacherSummary() {
+            const el = document.getElementById('advancedSummary');
+            if (el) el.textContent = `${teacherName} · ${styleLabel(teacherStyle)}`;
+        }
+
+        function greetingText(studentName) {
+            const who = studentName ? ' ' + studentName : '';
+            return `Hello${who}! I'm ${teacherName}. Click "开始上课" to begin today's lesson!`;
+        }
+
+        function updateGreetingPlaceholder(studentName) {
+            // Only the pre-lesson bubble is touched. Once the student has
+            // spoken, the transcript is history and must never be rewritten.
+            if (lessonComplete || lessonEnded) return;
+            if (chatArea.querySelector('.message.user')) return;
+            const bubble = chatArea.querySelector('.message.assistant');
+            if (!bubble) return;
+            const label = bubble.querySelector('.message-label');
+            const text = bubble.querySelector('.message-text');
+            if (label) label.textContent = teacherName;
+            if (text) text.textContent = greetingText(studentName);
+        }
+
+        async function saveTeacherChoice() {
+            if (!selectedStudentId || !currentTeacherId) return;
+            try {
+                await fetch('/api/teacher-choice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        student_id: selectedStudentId,
+                        teacher_id: currentTeacherId,
+                        style: teacherStyle,
+                    }),
+                });
+            } catch (e) {
+                console.warn('保存老师选择失败:', e);
+            }
+        }
+
+        document.getElementById('teacherSelect').addEventListener('change', async (e) => {
+            currentTeacherId = e.target.value;
+            // Switching teacher drops the previous override, matching the
+            // server-side rule: a style belongs to the teacher it was chosen for.
+            teacherStyle = styleForTeacher(currentTeacherId);
+            document.getElementById('styleSelect').value = teacherStyle;
+            applyTeacherName();
+            await saveTeacherChoice();
+        });
+
+        document.getElementById('styleSelect').addEventListener('change', async (e) => {
+            teacherStyle = e.target.value;
+            updateTeacherSummary();
+            await saveTeacherChoice();
+        });
+
+        async function loadStudents() {
+            try {
+                const res = await fetch('/api/students');
+                const data = await res.json();
+                renderStudentList(data.students || []);
+            } catch (e) {
+                addErrorMessage('无法加载学生列表: ' + e.message);
+            }
+        }
+
+        function renderStudentList(students) {
+            const list = document.getElementById('studentList');
+            list.innerHTML = '';
+            if (students.length === 0) {
+                list.innerHTML = '<div style="color:#888;font-size:13px;padding:8px 0">还没有学生，请先添加一位。</div>';
+                return;
+            }
+            students.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'student-item';
+                div.innerHTML = `
+                    <div>
+                        <div class="name">${escapeHtml(s.name)}</div>
+                        <div class="meta">${s.age ? escapeHtml(String(s.age)) + ' 岁 · ' : ''}${s.total_sessions ? '聊过 ' + s.total_sessions + ' 次' : '还没聊过'}${s.last_session_date ? ' · 上次聊天 ' + escapeHtml(s.last_session_date) : ''}</div>
+                    </div>
+                    <div style="color:#4ade80">开始 →</div>`;
+                div.addEventListener('click', () => selectStudent(s.id));
+                list.appendChild(div);
+            });
+        }
+
+        function selectStudent(id) {
+            selectedStudentId = id;
+            document.getElementById('studentPicker').classList.add('hidden');
+            document.getElementById('coursePicker').classList.remove('hidden');
+            loadTextbooks();
+            loadTeachers(id);
+        }
+
+        async function loadTextbooks() {
+            if (!selectedStudentId) return;
+            try {
+                const res = await fetch(`/api/curriculum/textbooks?student_id=${selectedStudentId}`);
+                const data = await res.json();
+                renderCourseList(data.textbooks || []);
+            } catch (e) {
+                document.getElementById('courseList').innerHTML =
+                    '<div style="color:#ef4444;font-size:13px;padding:8px 0">无法加载课程列表: ' + e.message + '</div>';
+            }
+        }
+
+        function renderCourseList(textbooks) {
+            const list = document.getElementById('courseList');
+            list.innerHTML = '';
+            if (textbooks.length === 0) {
+                list.innerHTML = '<div style="color:#888;font-size:13px;padding:8px 0">还没有教材。点下方「📖 我的教材 · 创建一本」：拍下课本页面，让 AI 提取后粘贴进来就行。</div>';
+                return;
+            }
+            textbooks.forEach(tb => {
+                const group = document.createElement('div');
+                group.className = 'textbook-group';
+                const completedCount = tb.units.filter(u => u.status === 'practiced').length;
+                const bookName = tb.title || tb.name;
+                // 只有自建教材可编辑/删除；捆绑示例只读（想替换它就自建同内容的一本）
+                const manageBtns = tb.source === 'user'
+                    ? `<button type="button" class="book-manage-btn" data-act="edit" data-id="${escapeHtml(tb.name)}" title="编辑这本教材">✏️</button>` +
+                      `<button type="button" class="book-manage-btn" data-act="delete" data-id="${escapeHtml(tb.name)}" title="删除这本教材">🗑️</button>`
+                    : '';
+                group.innerHTML = `
+                    <div class="textbook-header">
+                        <span>📖 ${escapeHtml(bookName)}</span>
+                        <span class="header-right">
+                            <span class="textbook-count">${completedCount}/${tb.units.length} 练过</span>
+                            ${manageBtns}
+                        </span>
+                    </div>`;
+                const listEl = document.createElement('div');
+
+                group.querySelectorAll('.book-manage-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (btn.dataset.act === 'edit') {
+                            openBookEditorFor(btn.dataset.id);
+                        } else {
+                            deleteBook(btn.dataset.id, bookName);
+                        }
+                    });
+                });
+
+                tb.units.forEach(unit => {
+                    const statusIcon = unit.status === 'practiced' ? '✅' : '○';
+                    // AI 评估的续学进度（0-100）；从未评估过时退回 ✅/○
+                    const progressLabel = typeof unit.progress === 'number'
+                        ? `进度 ${unit.progress}%` : statusIcon;
+                    const item = document.createElement('div');
+                    item.className = 'unit-item';
+                    item.innerHTML = `
+                        <div class="unit-info">
+                            <div class="unit-title">${escapeHtml(unit.title || unit.unit_id)}</div>
+                            <div class="unit-meta">${unit.word_count || 0} 个词汇 · ${progressLabel}</div>
+                        </div>
+                        <div class="unit-status"></div>`;
+
+                    item.addEventListener('click', () => {
+                        selectCourse(tb.name, unit.unit_id);
+                    });
+
+                    listEl.appendChild(item);
+                });
+
+                group.appendChild(listEl);
+                list.appendChild(group);
+            });
+        }
+
+        function selectCourse(textbook, unitId) {
+            selectedTextbook = textbook;
+            selectedUnitId = unitId;
+            freeModeSelected = false;
+            beginLessonBtn.textContent = '🎓 开始上课';
+            document.getElementById('coursePicker').classList.add('hidden');
+            statusEl.textContent = 'Connecting...';
+            statusEl.className = 'status disconnected';
+            connectWebSocket(selectedStudentId);
+        }
+
+        function selectFreeMode() {
+            selectedTextbook = '';
+            selectedUnitId = '';
+            freeModeSelected = true;
+            beginLessonBtn.textContent = '💬 开始聊天';
+            document.getElementById('coursePicker').classList.add('hidden');
+            statusEl.textContent = 'Connecting...';
+            statusEl.className = 'status disconnected';
+            connectWebSocket(selectedStudentId);
+        }
+
+        function backToStudentPicker() {
+            document.getElementById('coursePicker').classList.add('hidden');
+            document.getElementById('studentPicker').classList.remove('hidden');
+            loadStudents();
+        }
+
+        // ---- 我的教材：创建教材（粘贴 AI 提取结果 → 校验 → 保存） ----
+        // 用户永远不接触 JSON：id / unit_id / format 由后端生成。
+        const EXTRACT_PROMPT = [
+            '请阅读我拍的照片，把这一个单元的内容整理成下面三段，按顺序输出：',
+            '',
+            '[词汇]',
+            '本单元要学的单词和短语，一行一个',
+            '',
+            '[句式]',
+            '本单元出现的问答句型和核心句子，一行一句，问答写成 "问句 - 答句"',
+            '',
+            '[语法]',
+            '本单元讲的语法规则，用英文写，每条后面跟一个例子',
+            '',
+            '只要这三段，不要中文翻译，不要讲解，不要表格。某一段没有内容就留空。',
+        ].join('\n');
+
+        const CJK_RE = /[\u4e00-\u9fff]/;
+        // 编辑模式时是正在编辑的教材 id；null = 新建模式。
+        // id / unit_id 是进度键：编辑永远原 id 覆盖，已有 unit_id 原样往返。
+        let editingBookId = null;
+
+        function parseAISections(text) {
+            // 把按提示词整理的 AI 回复解析成三段。标记写法尽量宽容：
+            // [词汇] / 【词汇】 / 词汇： / **语法** / 1. 句式 都认。
+            const ALIAS = {
+                '词汇': 'vocabulary', '单词': 'vocabulary', '生词': 'vocabulary',
+                '句式': 'patterns', '句型': 'patterns', '句子': 'patterns',
+                '语法': 'grammar', '语法点': 'grammar',
+            };
+            const res = { vocabulary: [], patterns: [], grammar: [], found: 0 };
+            const marker = /^[\s>#*]*[\[【(（]?(词汇|单词|生词|句式|句型|句子|语法|语法点)[\]】)）]?\s*[:：]?\s*$/;
+            let current = null;
+            for (const rawLine of (text || '').split(/\r?\n/)) {
+                const m = rawLine.match(marker);
+                if (m) {
+                    current = res[ALIAS[m[1]]];
+                    res.found++;
+                    continue;
+                }
+                if (!current) continue;
+                const line = rawLine
+                    .replace(/^\s*(?:[-*•·]|\d+[.)、])\s+/, '')   // 列表符号
+                    .replace(/^\*+|\*+$/g, '').trim();            // markdown 加粗
+                if (line) current.push(line);
+            }
+            return res;
+        }
+
+        function linesOf(textarea) {
+            return textarea.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        }
+
+        function collectBook() {
+            const title = document.getElementById('bookTitleInput').value.trim();
+            const cards = [...document.querySelectorAll('#unitList .unit-editor')];
+            const units = cards.map(card => ({
+                unit_id: card.dataset.unitId || '',
+                title: card.querySelector('.unit-title-input').value.trim(),
+                vocabulary: linesOf(card.querySelector('.f-vocabulary')),
+                patterns: linesOf(card.querySelector('.f-patterns')),
+                grammar: linesOf(card.querySelector('.f-grammar')),
+            }));
+            return { title, units };
+        }
+
+        function showEditorProblems(problems, ok) {
+            const el = document.getElementById('editorProblems');
+            if (!problems || !problems.length) { el.style.display = 'none'; return; }
+            el.textContent = problems.join('\n');
+            el.className = 'editor-problems' + (ok ? ' editor-ok' : '');
+            el.style.display = 'block';
+        }
+
+        function refreshUnitNumbers() {
+            document.querySelectorAll('#unitList .unit-editor .unit-no').forEach((el, i) => {
+                el.textContent = `单元 ${i + 1}`;
+            });
+        }
+
+        function addUnitCard(unit = null) {
+            const card = document.createElement('div');
+            card.className = 'unit-editor';
+            card.dataset.unitId = (unit && unit.unit_id) || '';
+            card.innerHTML = `
+                <div class="unit-editor-head">
+                    <span class="unit-no"></span>
+                    <span class="unit-tools">
+                        <button type="button" class="unit-move" data-dir="up" title="上移（上课顺序提前）">↑</button>
+                        <button type="button" class="unit-move" data-dir="down" title="下移（上课顺序推后）">↓</button>
+                        <button type="button" class="unit-remove">✕ 删除本单元</button>
+                    </span>
+                </div>
+                <input class="unit-title-input" placeholder="单元标题（选填，如 Unit 1 Helping at home）" value="">
+                <button type="button" class="paste-toggle">📋 从 AI 提取结果粘贴</button>
+                <div class="paste-box">
+                    <textarea class="paste-input" placeholder="把 AI 的回复原样粘贴到这里…"></textarea>
+                    <div class="paste-hint">应包含 [词汇] / [句式] / [语法] 三段，没有内容的段留空。解析后仍可手动修改。</div>
+                    <button type="button" class="setup-btn ghost paste-parse">解析填入</button>
+                </div>
+                <label class="unit-field-label"><span class="req">*</span> 词汇（一行一个）</label>
+                <textarea class="f-vocabulary" rows="4" placeholder="doctor&#10;nurse&#10;sweep the floor"></textarea>
+                <div class="cjk-warn">⚠ 检测到中文 —— 这是英文口语陪练，请只填英文</div>
+                <label class="unit-field-label">句式（一行一句，问答写成 "问句 - 答句"，可空）</label>
+                <textarea class="f-patterns" rows="3" placeholder="What's your mother's job? - She's a doctor."></textarea>
+                <div class="cjk-warn">⚠ 检测到中文 —— 请只填英文</div>
+                <label class="unit-field-label">语法（一行一条，用英文描述 + 例子，可空）</label>
+                <textarea class="f-grammar" rows="2" placeholder="Modal verb 'can' (Subject + can + base verb; e.g., 'I can cook.')"></textarea>
+                <div class="cjk-warn">⚠ 检测到中文 —— 请只填英文</div>`;
+
+            if (unit) {
+                card.querySelector('.unit-title-input').value = unit.title || '';
+                card.querySelector('.f-vocabulary').value = (unit.vocabulary || []).join('\n');
+                card.querySelector('.f-patterns').value = (unit.patterns || []).join('\n');
+                card.querySelector('.f-grammar').value = (unit.grammar || []).join('\n');
+            }
+
+            card.querySelector('.unit-remove').addEventListener('click', () => {
+                const cards = document.querySelectorAll('#unitList .unit-editor');
+                if (cards.length === 1) { showEditorProblems(['至少要保留一个单元。']); return; }
+                if (confirm('确定删除这个单元？填过的内容会一起消失。')) {
+                    card.remove();
+                    refreshUnitNumbers();
+                }
+            });
+
+            card.querySelectorAll('.unit-move').forEach(btn => {
+                btn.addEventListener('click', () => moveUnitCard(card, btn.dataset.dir === 'up' ? -1 : 1));
+            });
+
+            const pasteBox = card.querySelector('.paste-box');
+            card.querySelector('.paste-toggle').addEventListener('click', () => {
+                pasteBox.classList.toggle('open');
+                if (pasteBox.classList.contains('open')) {
+                    card.querySelector('.paste-input').focus();
+                }
+            });
+
+            card.querySelector('.paste-parse').addEventListener('click', () => {
+                const parsed = parseAISections(card.querySelector('.paste-input').value);
+                if (!parsed.found) {
+                    showEditorProblems(['没找到 [词汇] / [句式] / [语法] 分段标记。请确认粘贴的是按提取提示词整理的回复（点上方「复制提取提示词」）。']);
+                    return;
+                }
+                const setField = (sel, items) => {
+                    if (items.length) { card.querySelector(sel).value = items.join('\n'); }
+                };
+                setField('.f-vocabulary', parsed.vocabulary);
+                setField('.f-patterns', parsed.patterns);
+                setField('.f-grammar', parsed.grammar);
+                card.querySelectorAll('textarea').forEach(warnIfChinese);
+                pasteBox.classList.remove('open');
+                showEditorProblems(
+                    [`✓ 解析完成：词汇 ${parsed.vocabulary.length} 条，句式 ${parsed.patterns.length} 条，语法 ${parsed.grammar.length} 条。`],
+                    true);
+            });
+
+            card.querySelectorAll('textarea').forEach(ta => {
+                ta.addEventListener('input', () => warnIfChinese(ta));
+            });
+
+            document.getElementById('unitList').appendChild(card);
+            refreshUnitNumbers();
+        }
+
+        function moveUnitCard(card, direction) {
+            // 交换相邻的卡片；unit_id 跟着卡片走，顺序变了进度也不受影响
+            if (direction < 0) {
+                const prev = card.previousElementSibling;
+                if (prev) card.parentNode.insertBefore(card, prev);
+            } else {
+                const next = card.nextElementSibling;
+                if (next) card.parentNode.insertBefore(next, card);
+            }
+            refreshUnitNumbers();
+        }
+
+        function warnIfChinese(ta) {
+            if (ta.classList.contains('paste-input')) return; // 粘贴原文允许中文，解析时再处理
+            const warn = ta.nextElementSibling; // 每个内容框后面紧跟自己的 .cjk-warn
+            if (warn && warn.classList.contains('cjk-warn')) {
+                warn.classList.toggle('show', CJK_RE.test(ta.value));
+            }
+        }
+
+        async function validateBook() {
+            const book = collectBook();
+            const res = await fetch('/api/curriculum/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(book),
+            });
+            return res.json();
+        }
+
+        function setEditorMode(editing) {
+            editingBookId = editing || null;
+            document.getElementById('editorHeading').textContent =
+                editingBookId ? '✏️ 编辑教材' : '📖 我的教材';
+            document.getElementById('saveBookBtn').textContent =
+                editingBookId ? '💾 保存修改' : '💾 保存教材';
+        }
+
+        function openBookEditor() {
+            // 从「编辑某本」切换到「新建」时，别把旧书的草稿当成新书存出去
+            if (editingBookId) resetBookEditor();
+            setEditorMode(null);
+            document.getElementById('coursePicker').classList.add('hidden');
+            document.getElementById('bookEditor').classList.remove('hidden');
+            if (!document.querySelector('#unitList .unit-editor')) {
+                addUnitCard();
+                showEditorProblems('');
+            }
+        }
+
+        async function openBookEditorFor(bookId) {
+            let book;
+            try {
+                const res = await fetch(`/api/curriculum/books/${encodeURIComponent(bookId)}`);
+                if (!res.ok) {
+                    alert('教材读取失败（它可能刚被删除）。');
+                    return;
+                }
+                book = await res.json();
+            } catch (e) {
+                alert('教材读取失败：' + e.message);
+                return;
+            }
+            resetBookEditor();
+            setEditorMode(bookId);
+            document.getElementById('bookTitleInput').value = book.title || '';
+            (book.units || []).forEach(u => addUnitCard(u));
+            showEditorProblems('');
+            document.getElementById('coursePicker').classList.add('hidden');
+            document.getElementById('bookEditor').classList.remove('hidden');
+        }
+
+        async function deleteBook(bookId, bookTitle) {
+            if (!confirm(`确定删除《${bookTitle}》？\n教材文件会被删除，此操作不可撤销；学生已练过的进度仍保留在档案里。`)) {
+                return;
+            }
+            try {
+                const res = await fetch(`/api/curriculum/books/${encodeURIComponent(bookId)}`,
+                    { method: 'DELETE' });
+                const data = await res.json();
+                if (data.ok) {
+                    loadTextbooks();
+                } else {
+                    alert((data.problems || ['删除失败，请重试。']).join('\n'));
+                }
+            } catch (e) {
+                alert('删除请求失败：' + e.message);
+            }
+        }
+
+        function closeBookEditor() {
+            document.getElementById('bookEditor').classList.add('hidden');
+            document.getElementById('coursePicker').classList.remove('hidden');
+            loadTextbooks();   // 保存后回来说不定列表已经变了
+        }
+
+        async function saveBook() {
+            const saveBtn = document.getElementById('saveBookBtn');
+            saveBtn.disabled = true;
+            try {
+                const editing = editingBookId;
+                const res = await fetch(
+                    editing ? `/api/curriculum/books/${encodeURIComponent(editing)}` : '/api/curriculum/books',
+                    {
+                        method: editing ? 'PUT' : 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(collectBook()),
+                    });
+                const data = await res.json();
+                if (data.ok) {
+                    showEditorProblems(
+                        [`✓ ${editing ? '已保存修改' : '已保存'}《${data.title}》，正在刷新选课列表…`],
+                        true);
+                    setTimeout(() => {
+                        resetBookEditor();
+                        closeBookEditor();
+                    }, 1000);
+                } else {
+                    showEditorProblems(data.problems || ['保存失败，请重试。']);
+                }
+            } catch (e) {
+                showEditorProblems(['保存请求失败：' + e.message]);
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+
+        function resetBookEditor() {
+            setEditorMode(null);
+            document.getElementById('bookTitleInput').value = '';
+            document.getElementById('unitList').innerHTML = '';
+            showEditorProblems('');
+        }
+
+        document.getElementById('openBookEditorBtn').addEventListener('click', openBookEditor);
+        document.getElementById('closeBookEditorBtn').addEventListener('click', closeBookEditor);
+        document.getElementById('addUnitBtn').addEventListener('click', addUnitCard);
+        document.getElementById('saveBookBtn').addEventListener('click', saveBook);
+        document.getElementById('checkBookBtn').addEventListener('click', async () => {
+            const res = await validateBook();
+            showEditorProblems(res.ok ? ['✓ 检查通过，可以点「保存教材」了。'] : res.problems, res.ok);
+        });
+        document.getElementById('copyPromptBtn').addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            try {
+                await navigator.clipboard.writeText(EXTRACT_PROMPT);
+                btn.textContent = '✓ 已复制，去粘贴给 AI 吧';
+            } catch (err) {
+                // 剪贴板权限被拒（常见于 http 部署）：退化成选中弹窗让用户手动复制
+                window.prompt('复制下面这段提示词：', EXTRACT_PROMPT);
+            }
+            setTimeout(() => { btn.textContent = '复制提取提示词'; }, 2500);
+        });
+
+        async function createStudent() {
+            const name = document.getElementById('newStudentName').value.trim();
+            if (!name) {
+                alert('请填写学生姓名');
+                return;
+            }
+            const payload = {
+                name,
+                age: parseInt(document.getElementById('newStudentAge').value || '8', 10),
+                language_background: document.getElementById('newStudentLangBg').value,
+                interests: document.getElementById('newStudentInterests').value
+                    .split(',').map(s => s.trim()).filter(Boolean),
+            };
+            try {
+                const res = await fetch('/api/students', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    alert('创建失败: ' + (err.error || res.status));
+                    return;
+                }
+                document.getElementById('newStudentName').value = '';
+                document.getElementById('newStudentAge').value = '';
+                document.getElementById('newStudentLangBg').value = '中文';
+                document.getElementById('newStudentInterests').value = '';
+                await loadStudents();
+            } catch (e) {
+                alert('创建失败: ' + e.message);
+            }
+        }
+
+        document.getElementById('createStudentBtn').addEventListener('click', createStudent);
+
+        // ---- 首次使用：先确认有没有 API Key，没有就先弹引导 ----
+        // 「装没装好」和「账号能不能用」是两件事，所以这一层单独拿出来：
+        // 页面能打开就说明部署成功了，Key 没填只是还没配置而已。
+        const setupOverlay = document.getElementById('setupOverlay');
+        const setupResult = document.getElementById('setupResult');
+        const setupKeyInput = document.getElementById('setupKeyInput');
+        const setupSaveBtn = document.getElementById('setupSaveBtn');
+        const setupCancelBtn = document.getElementById('setupCancelBtn');
+        const setupTitle = document.getElementById('setupTitle');
+        const setupSteps = document.getElementById('setupSteps');
+        const setupNote = document.getElementById('setupNote');
+        // 注册入口以后端下发的 vendor.signup_url 为准（app/vendors/<厂商>.py）；
+        // 状态接口没回来时留空 —— 同一个后端挂了页面本身也活不了。
+        let referralUrl = '';
+        let keyConfigured = false;
+        let vendorGuide = null;
+
+        // 引导素材约定 **加粗**：先整体转义再替换，防注入；不支持其它 markdown
+        function mdInline(text) {
+            const esc = document.createElement('div');
+            esc.textContent = text || '';
+            return esc.innerHTML.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        }
+
+        // 供应商引导只渲染不持有：文案全部来自 /api/setup/status 的 vendor 段
+        function renderVendorGuide(v) {
+            vendorGuide = v;
+            setupTitle.textContent = v.title_first || '';
+            setupSteps.innerHTML = '';
+            const add = (html) => {
+                const div = document.createElement('div');
+                div.innerHTML = html;
+                setupSteps.appendChild(div);
+            };
+            if (v.intro) add(mdInline(v.intro));
+            if (v.preamble) add(mdInline(v.preamble));
+            if ((v.steps || []).length) {
+                const ol = document.createElement('ol');
+                v.steps.forEach(s => {
+                    const li = document.createElement('li');
+                    li.innerHTML = mdInline(s);
+                    ol.appendChild(li);
+                });
+                setupSteps.appendChild(ol);
+            }
+            document.getElementById('setupRegisterBtn').textContent =
+                '① ' + (v.signup_label || '打开注册页');
+            setupKeyInput.placeholder = v.input_placeholder || '在这里按 Ctrl+V 粘贴 API Key';
+            // 前两行是与厂商无关的产品行为说明，第三行（充值提示）来自档案
+            const notes = [
+                'Key 只写进你这台电脑上的 .env 文件，不会上传到任何地方。',
+                '「保存并测试」会真调一次极小的请求（花费远不到 1 分钱）确认它能用 —— 余额不足、Key 写错、网络不通，都会在这里直接告诉你。',
+                mdInline(v.pricing_note || ''),
+            ].filter(Boolean);
+            setupNote.innerHTML = notes.join('<br>');
+        }
+
+        function setSetupResult(text, cls) {
+            setupResult.textContent = text || '';
+            setupResult.className = 'setup-result' + (cls ? ' ' + cls : '');
+        }
+
+        async function saveSetupKey() {
+            const key = setupKeyInput.value.trim();
+            if (!key) {
+                setSetupResult('请先粘贴 API Key。', 'err');
+                return;
+            }
+            setupSaveBtn.disabled = true;
+            setSetupResult((vendorGuide && vendorGuide.verify_busy)
+                           || '正在验证…（通常几秒钟）', 'busy');
+            try {
+                const res = await fetch('/api/setup/key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key }),
+                });
+                const data = await res.json();
+                const head = (data.detail || []).join('\n');
+                if (data.ok) {
+                    setSetupResult((head ? head + '\n' : '') + '✓ ' + (data.message || '配置成功') + '，正在进入…', 'ok');
+                    setTimeout(() => location.reload(), 900);
+                    return;
+                }
+                setSetupResult((head ? head + '\n' : '') + '✗ ' + (data.message || '验证没通过。'), 'err');
+            } catch (e) {
+                setSetupResult('请求失败：' + e.message, 'err');
+            } finally {
+                setupSaveBtn.disabled = false;
+            }
+        }
+
+        async function initApp() {
+            try {
+                const res = await fetch('/api/setup/status');
+                const data = await res.json();
+                keyConfigured = !!data.configured;
+                if (data.vendor) { renderVendorGuide(data.vendor); }
+                if (data.referral_url) { referralUrl = data.referral_url; }
+                if (keyConfigured) {
+                    setupTitle.textContent = (vendorGuide && vendorGuide.title_replace)
+                                             || '🔑 换一把 API Key';
+                    setupCancelBtn.style.display = '';
+                }
+                if (!keyConfigured) {
+                    setupOverlay.classList.remove('hidden');
+                    setupKeyInput.focus();
+                    return;   // 没配置 Key 就先别去加载学生列表
+                }
+            } catch (e) {
+                // 状态接口自己挂了也要让人能进页面，别把用户挡在门外
+                console.warn('setup status failed', e);
+            }
+            loadStudents();
+            loadTeachers();
+        }
+
+        // 已经配好了还点了「⚙️ API Key」：当作"换一把"，随时能取消
+        document.getElementById('setupLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            setSetupResult('');
+            setupOverlay.classList.remove('hidden');
+            setupCancelBtn.style.display = keyConfigured ? '' : 'none';
+            setupKeyInput.focus();
+        });
+        setupCancelBtn.addEventListener('click', () => {
+            setupOverlay.classList.add('hidden');
+        });
+        document.getElementById('setupRegisterBtn').addEventListener('click', () => {
+            if (referralUrl) { window.open(referralUrl, '_blank', 'noopener'); }
+        });
+        setupSaveBtn.addEventListener('click', saveSetupKey);
+        setupKeyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveSetupKey(); });
+        initApp();
+    </script>
+</body>
+</html>
