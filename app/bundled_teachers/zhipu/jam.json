@@ -1,0 +1,9 @@
+{
+  "teacher_profile": {
+    "display_name": "Jam"
+  },
+  "tts_config": {
+    "voice": "jam",
+    "style": "lively"
+  }
+}
