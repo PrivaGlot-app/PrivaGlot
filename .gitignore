@@ -1,0 +1,71 @@
+# ===== Secrets / local config =====
+.env
+# Teacher profiles ship with the CODE in app/bundled_teachers/ (tracked, no
+# personal data) so a fresh clone runs out of the box and they stay readable
+# even when data/ is bind-mounted over in a container. data/teachers/ below
+# holds only runtime state: its keys are student ids, so it must never be
+# published (same rule as the student profiles further down).
+data/teachers/
+
+# ===== Personal data (never publish) =====
+# Student profiles: name, age, interests, progress
+data/students/
+# Lesson transcripts: every student/teacher turn
+data/sessions/
+# Full LLM prompt+response logs (student utterances included)
+data/prompt_logs/
+
+# ===== Curriculum =====
+# data/curriculum/ holds the user's own textbooks (created and maintained in
+# the web UI). Only its README is tracked. The bundled sample textbooks that
+# ship with the repo live in app/bundled_curriculum/ (tracked).
+data/curriculum/*
+!data/curriculum/README.md
+
+# ===== Developer-only tools and notes =====
+# Tests never enter the repo (2026-09-25 决定): contract tests, dry-run scripts
+# and real-MiMo e2e scripts all stay on the maintainer's machine. The same
+# goes for the internal dev journal (docs/开发账本.md + docs/archive/), the
+# Feishu interaction-tree design doc, and the ZCode workspace config.
+tests/
+docs/飞书交互树.md
+docs/Windows交互树.md
+docs/开发账本.md
+docs/archive/
+.zcodeignore
+.zcode/
+
+# ===== Runtime output =====
+logs/
+*.log
+# session_registry 的跨进程互斥锁文件（运行时状态，按 student_id 一把）
+data/session_locks/
+
+# ===== Auto-downloaded ffmpeg (see setup/bootstrap.ps1) =====
+# Offline fallback when winget is unavailable; ~90 MB, never belongs in git.
+tools/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ===== Editors / OS =====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.pytest_tmp
+# pytest --basetemp scratch — never belongs in git (a round of basetemp junk
+# under .tmp/pytest-qr3 once got committed by accident; untracked 2026-10-14).
+# basetemp 一律指到 .tmp/ 之下（点前缀、已在名单）；.tmp_pytest/ 是 2026-10-16
+# 误指到仓库根的变体，留着这条防它再进 git status。
+.tmp/
+.tmp_pytest/
+tmp/
+# ===== Scratch =====
+# temp/ holds working material (textbook PDFs/JSON under review) and must never
+# be committed.
+temp/
