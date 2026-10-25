@@ -1,0 +1,9 @@
+{
+  "teacher_profile": {
+    "display_name": "Tongtong"
+  },
+  "tts_config": {
+    "voice": "tongtong",
+    "style": "gentle"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "teacher_profile": {
+    "display_name": "Luodo"
+  },
+  "tts_config": {
+    "voice": "luodo",
+    "style": "lively"
+  }
+}

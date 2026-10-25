@@ -1,0 +1,28 @@
+# Never let secrets or personal data into the build context or the image.
+.env
+.env.*
+!.env.example
+
+# Runtime / private data
+data/students/
+data/sessions/
+data/prompt_logs/
+data/teachers/
+# The user's own textbooks stay out of the image; the shipped samples
+# live in app/bundled_curriculum/ and travel with COPY app.
+data/curriculum/*
+!data/curriculum/README.md
+logs/
+
+# Dev-only
+.git/
+.gitignore
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+tests/
+docs/
+.zcode/
+.vscode/
+.idea/
