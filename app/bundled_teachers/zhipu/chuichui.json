@@ -1,0 +1,9 @@
+{
+  "teacher_profile": {
+    "display_name": "Chuichui"
+  },
+  "tts_config": {
+    "voice": "chuichui",
+    "style": "lively"
+  }
+}
